@@ -10,3 +10,6 @@ app/database/*.sqlite
 site/
 bootstrap/compiled.php
 .env.testing.php
+.idea/
+public/repo/
+_ide_helper.php

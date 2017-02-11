@@ -207,6 +207,7 @@ class ModController extends BaseController {
 			$mod_id = Input::get('mod-id');
 			$md5 = Input::get('add-md5');
 			$version = Input::get('add-version');
+			$downloadUrl = Input::get('add-url');
 			if (empty($mod_id) || empty($version))
 				return Response::json(array(
 							'status' => 'error',
@@ -219,6 +220,37 @@ class ModController extends BaseController {
 							'status' => 'error',
 							'reason' => 'Could not pull mod from database'
 							));
+
+			if(!empty($downloadUrl)){
+                $ch = curl_init();
+                curl_setopt($ch, CURLOPT_URL, $downloadUrl);
+                curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+                curl_setopt($ch, CURLOPT_BINARYTRANSFER, 1);
+                curl_setopt($ch, CURLOPT_VERBOSE, 1);
+                curl_setopt($ch, CURLOPT_HEADER, 1);
+                curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+                curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+                $response = curl_exec($ch);
+
+                // Then, after your curl_exec call:
+                $header_size = curl_getinfo($ch, CURLINFO_HEADER_SIZE);
+                $remote_file_url = curl_getinfo($ch, CURLINFO_EFFECTIVE_URL);
+                $modFile = substr($response, $header_size);
+
+                $file_name = substr($remote_file_url, strrpos($remote_file_url, '/') + 1);
+                $file_name = explode("?", $file_name)[0];
+                error_log($file_name);
+
+                if(!is_dir(Config::get('solder.repo_location')."mods/$mod->name"))
+                    mkdir(Config::get('solder.repo_location')."mods/$mod->name");
+
+                $zip_name = Config::get('solder.repo_location')."mods/$mod->name/$mod->name-$version.zip";
+
+                $zip = new ZipArchive();
+                $zip->open($zip_name, ZipArchive::CREATE);
+                $zip->addFromString("mods/$file_name", $modFile);
+                $zip->close();
+            }
 
 			if (empty($md5)) {
 				$file_md5 = $this->mod_md5($mod,$version);
@@ -240,8 +272,10 @@ class ModController extends BaseController {
 					$ver->save();
 					return Response::json(array(
 								'status' => 'success',
+                                'id' => $ver->mod_id,
 								'version' => $ver->version,
 								'md5' => $ver->md5,
+                                'mirror_url' => Config::get('solder.mirror_url')."mods/$mod->name/$mod->name-$version.zip",
 								'filesize' => $ver->humanFilesize("MB"),
 								));
 				} else {
@@ -250,8 +284,10 @@ class ModController extends BaseController {
 					$ver->save();
 					return Response::json(array(
 								'status' => 'warning',
+                                'id' => $ver->mod_id,
 								'version' => $ver->version,
 								'md5' => $ver->md5,
+                                'mirror_url' => Config::get('solder.mirror_url')."mods/$mod->name/$mod->name-$version.zip",
 								'filesize' => $ver->humanFilesize("MB"),
 								'reason' => 'MD5 provided does not match file MD5: ' . $pfile_md5,
 								));

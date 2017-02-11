@@ -72,7 +72,7 @@
 			<div class="tab-pane fade in active" id="versions">
 				<br>
 				<p>Solder currently does not support uploading files directly to it. Your repository still needs to exist and follow a strict directory structure. When you add versions the URL will be verified to make sure the file exists before it is added to Solder. The directory stucture for mods is as follow:</p>
-					<blockquote><strong>/mods/[modslug]/[modslug]-[version].zip</strong></blockquote>
+					<blockquote><strong>/mods/{{ $mod->name }}/{{ $mod->name }}-[version].zip</strong></blockquote>
 				<table class="table">
 					<thead>
 						<th style="width: 1%"></th>
@@ -92,7 +92,9 @@
 								<td>
 									<input type="text" name="add-md5" id="add-md5" class="form-control"></td>
 								</td>
-								<td><span id="add-url">N/A</span></td>
+								<td>
+									<input type="text" name="add-url" id="add-url" class="form-control"></td>
+								</td>
 								<td>N/A</td>
 								<td><button type="submit" class="btn btn-success btn-small add">Add Version</button></td>
 							</form>
@@ -103,7 +105,7 @@
 								<input type="hidden" name="version-id" value="{{ $ver->id }}">
 								<td><i class="version-icon fa fa-plus" rel="{{ $ver->id }}"></i></td>
 								<td class="version" rel="{{ $ver->id }}">{{ $ver->version }}</td>
-								<td><input type="text" class="md5 form-control" name="md5" id="md5" placeholder="{{ $ver->md5 }}" rel="{{ $ver->id }}"></input></td>
+								<td><input type="text" class="md5 form-control" name="md5" id="md5" placeholder="{{ $ver->md5 }}" rel="{{ $ver->id }}"></td>
 								<td class="url" rel="{{ $ver->id }}"><small><a href="{{ Config::get('solder.mirror_url').'mods/'.$mod->name.'/'.$mod->name.'-'.$ver->version.'.zip' }}">{{ Config::get('solder.mirror_url').'mods/'.$mod->name.'/'.$mod->name.'-'.$ver->version.'.zip' }}</a></small></td>
 								<td>{{ $ver->humanFilesize("MB") }}</td>
 								<td><button type="submit" class="btn btn-primary btn-xs rehash" rel="{{ $ver->id }}">Rehash</button> <button class="btn btn-danger btn-xs delete" rel="{{ $ver->id }}">Delete</button>
@@ -132,25 +134,62 @@
 
 var mirror_url = '{{ Config::get("solder.mirror_url") }}';
 
+/*
 $('#add-version').keyup(function() {
 	$("#add-url").html('<a href="' + mirror_url + 'mods/{{ $mod->name }}/{{ $mod->name }}-' + $(this).val() + '.zip" target="_blank">' + mirror_url + 'mods/{{ $mod->name }}/{{ $mod->name }}-' + $(this).val() + '.zip</a>');
 });
+*/
 
 $('#add').submit(function(e) {
 	e.preventDefault();
 	console.log($("#add").serialize());
 	if ($('#add-version').val() != "") {
+	    if($("#add-url").val() != ""){
+            $.jGrowl("Downloading mod to server, this can take a few seconds.", { group: 'alert-info' });
+		}
 		$.ajax({
 			type: "POST",
 			url: "{{ URL::to('mod/add-version/') }}",
 			data: $("#add").serialize(),
 			success: function (data) {
 				if (data.status == "success") {
-					$("#add-row").after('<tr><td></td><td>' + data.version + '</td><td>' + data.md5 + '</td><td><a href="' + mirror_url + 'mods/{{ $mod->name }}/{{ $mod->name }}-' + data.version + '.zip" target="_blank">{mods/{{ $mod->name }}/{{ $mod->name }}-' + data.version + '.zip</a></td><td>' + data.filesize + '</td><td></td></tr>');
+                    $("#add-row").after(
+                        "<tr class='version' rel='" + data.id + "'>" +
+							"<form method='post' id='rehash' action='{{ URL::to('mod/rehash/') }}'>" +
+								"<input type='hidden' name='version-id' value='" + data.id + "'>" +
+								"<td><i class='version-icon fa fa-plus' rel='" + data.id + "'></i></td>" +
+								"<td class='version' rel='" + data.id + "'>" + data.version + "</td>" +
+								"<td><input type='text' class='md5 form-control' name='md5' id='md5' placeholder='" + data.md5 + "' rel='" + data.id + "'></td>" +
+								"<td class='url' rel='" + data.id + "'><small><a href='" + data.mirror_url + "'>" + data.mirror_url + "</a></small></td>" +
+								"<td>" + data.filesize + "</td>" +
+								"<td><button type='submit' class='btn btn-primary btn-xs rehash' rel='" + data.id + "'>Rehash</button> <button class='btn btn-danger btn-xs delete' rel='" + data.id + "'>Delete</button>" +
+							"</form>" +
+						"</tr>"
+					);
+					//$("#add-row").after('<tr><td></td><td>' + data.version + '</td><td>' + data.md5 + '</td><td><a href="' + mirror_url + 'mods/{{ $mod->name }}/{{ $mod->name }}-' + data.version + '.zip" target="_blank">' + mirror_url + 'mods/{{ $mod->name }}/{{ $mod->name }}-' + data.version + '.zip</a></td><td>' + data.filesize + '</td><td></td></tr>');
 					$.jGrowl('Added mod version at ' + data.version, { group: 'alert-success' });
+                    $("#add-version").val("");
+                    $("#add-md5").val("");
+                    $("#add-url").val("");
 				} else if (data.status == "warning") {
-					$("#add-row").after('<tr><td></td><td>' + data.version + '</td><td>' + data.md5 + '</td><td><a href="' + mirror_url + 'mods/{{ $mod->name }}/{{ $mod->name }}-' + data.version + '.zip" target="_blank">' + mirror_url + 'mods/{{ $mod->name }}/{{ $mod->name }}-' + data.version + '.zip</a></td><td>' + data.filesize + '</td><td></td></tr>');
+                    $("#add-row").after(
+                        "<tr class='version' rel='" + data.id + "'>" +
+                        "<form method='post' id='rehash' action='{{ URL::to('mod/rehash/') }}'>" +
+                        "<input type='hidden' name='version-id' value='" + data.id + "'>" +
+                        "<td><i class='version-icon fa fa-plus' rel='" + data.id + "'></i></td>" +
+                        "<td class='version' rel='" + data.id + "'>" + data.version + "</td>" +
+                        "<td><input type='text' class='md5 form-control' name='md5' id='md5' placeholder='" + data.md5 + "' rel='" + data.id + "'></td>" +
+                        "<td class='url' rel='" + data.id + "'><small><a href='" + data.mirror_url + "'>" + data.mirror_url + "</a></small></td>" +
+                        "<td>" + data.filesize + "</td>" +
+                        "<td><button type='submit' class='btn btn-primary btn-xs rehash' rel='" + data.id + "'>Rehash</button> <button class='btn btn-danger btn-xs delete' rel='" + data.id + "'>Delete</button>" +
+                        "</form>" +
+                        "</tr>"
+                    );
+					//$("#add-row").after('<tr><td></td><td>' + data.version + '</td><td>' + data.md5 + '</td><td><a href="' + mirror_url + 'mods/{{ $mod->name }}/{{ $mod->name }}-' + data.version + '.zip" target="_blank">' + mirror_url + 'mods/{{ $mod->name }}/{{ $mod->name }}-' + data.version + '.zip</a></td><td>' + data.filesize + '</td><td></td></tr>');
 					$.jGrowl('Added mod version at ' + data.version + ". " + data.reason, { group: 'alert-warning' });
+                    $("#add-version").val("");
+					$("#add-md5").val("");
+					$("#add-url").val("");
 				} else {
 					$.jGrowl('Error: ' + data.reason, { group: 'alert-danger' });
 				}

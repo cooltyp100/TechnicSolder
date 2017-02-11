@@ -25,7 +25,8 @@
         "composer/composer": "1.0.0-alpha9",
         "knplabs/github-api": "1.4.*",
         "guzzlehttp/guzzle": "5.2.*",
-        "aws/aws-sdk-php": "2.7.*"
+        "aws/aws-sdk-php": "2.7.*",
+		"barryvdh/laravel-ide-helper": "1.11.*@dev"
 	},
 	"require-dev": {
 		"barryvdh/laravel-debugbar": "~1.8@dev",
@@ -54,6 +55,7 @@
 		],
 		"post-update-cmd": [
 			"php artisan clear-compiled",
+			"php artisan ide-helper:generate",
 			"php artisan optimize"
 		],
 		"tests": [
